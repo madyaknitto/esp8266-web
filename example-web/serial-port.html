@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serial Reader</title>
+</head>
+<body>
+    <h2>Baca Data dari ESP8266</h2>
+    <button id="connect">Hubungkan</button>
+    <pre id="output"></pre>
+
+    <script>
+        let port;
+        document.getElementById("connect").addEventListener("click", async () => {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+
+                const reader = port.readable.getReader();
+                const output = document.getElementById("output");
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    output.textContent += new TextDecoder().decode(value);
+                }
+                reader.releaseLock();
+            } catch (err) {
+                console.error("Gagal menghubungkan ke serial: ", err);
+            }
+        });
+    </script>
+</body>
+</html>
