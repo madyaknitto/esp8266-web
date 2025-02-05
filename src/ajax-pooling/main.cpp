@@ -59,8 +59,9 @@ void setup()
 
         // Baca sensor infrared
         int irStatus = digitalRead(irPin);
+        String irStatusString = irStatus ? "OFF" : "ON";
 
-        String json = "{\"jarak\":" + String(distance) + ", \"ir\":" + String(irStatus) + "}";
+        String json = "{\"jarak\":" + String(distance) + " cm, \"ir\":" + irStatusString + "}";
         server.send(200, "application/json", json); 
     });
 

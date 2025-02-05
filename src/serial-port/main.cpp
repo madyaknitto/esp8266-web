@@ -26,12 +26,13 @@ void loop() {
 
   // Baca sensor infrared
   int irStatus = digitalRead(irPin);
+  String irStatusString = irStatus ? "OFF" : "ON";
 
   // Kirim data ke Serial Monitor via USB
   Serial.print("Jarak: ");
   Serial.print(distance);
   Serial.print(" cm | Status IR: ");
-  Serial.println(irStatus);
+  Serial.println(irStatusString);
 
   delay(1000);
 }
