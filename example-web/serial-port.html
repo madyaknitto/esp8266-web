@@ -3,31 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Serial Reader</title>
+    <title>ESP8266 Sensor Data</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        .data-container { margin: 10px auto; padding: 10px; border: 1px solid #ddd; width: 300px; border-radius: 10px; text-align: left; }
+        .data-label { font-weight: bold; }
+        .data-value { color: green; font-size: 20px; }
+        button { padding: 10px; margin: 10px; cursor: pointer; }
+    </style>
 </head>
 <body>
-    <h2>Baca Data dari ESP8266</h2>
+    <h1>ESP8266 Sensor Data</h1>
     <button id="connect">Hubungkan</button>
-    <pre id="output"></pre>
+
+    <div class="data-container">
+        <span class="data-label">Ultrasonic Distance:</span>
+        <span class="data-value" id="ultrasonic-data">-</span>
+    </div>
+    <div class="data-container">
+        <span class="data-label">Infrared Status:</span>
+        <span class="data-value" id="infrared-data">-</span>
+    </div>
 
     <script>
         let port;
+    
         document.getElementById("connect").addEventListener("click", async () => {
             try {
                 port = await navigator.serial.requestPort();
                 await port.open({ baudRate: 115200 });
-
+    
                 const reader = port.readable.getReader();
-                const output = document.getElementById("output");
-
+                const decoder = new TextDecoder();
+                let buffer = "";
+    
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
-                    output.textContent += new TextDecoder().decode(value);
+    
+                    buffer += decoder.decode(value, { stream: true });
+    
+                    let lines = buffer.split("\n");
+                    buffer = lines.pop();  // Sisakan data yang belum lengkap
+    
+                    for (let line of lines) {
+                        try {
+                            let data = JSON.parse(line.trim());
+                            document.getElementById("ultrasonic-data").textContent = data.ultrasonic + " cm";
+                            document.getElementById("infrared-data").textContent = data.infrared ? "OFF" : "ON";
+                        } catch (err) {
+                            console.error("Gagal parsing data:", err, line);
+                        }
+                    }
                 }
+    
                 reader.releaseLock();
             } catch (err) {
-                console.error("Gagal menghubungkan ke serial: ", err);
+                console.error("Gagal menghubungkan ke serial:", err);
             }
         });
     </script>

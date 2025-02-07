@@ -1,38 +1,52 @@
-#include <ESP8266WiFi.h>
+#include <Ticker.h>
 
-// Pin untuk sensor ultrasonik
-const int trigPin = D1;  // GPIO5
-const int echoPin = D2;  // GPIO4
+Ticker ultrasonicTicker;
+Ticker infraredTicker;
 
-// Pin untuk sensor infrared
-const int irPin = D3;    // GPIO0
+const int trigPin = D1;
+const int echoPin = D2;
+const int irPin = D3;
+
+float distance = 0.0;
+int irStatus = 0;
+
+void startUltrasonicMeasurement() {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+
+    unsigned long duration = pulseIn(echoPin, HIGH);
+    distance = duration * 0.034 / 2;
+}
+
+void readInfrared() {
+    irStatus = digitalRead(irPin);
+}
 
 void setup() {
-  Serial.begin(115200);
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  pinMode(irPin, INPUT);
+    Serial.begin(115200);
+    pinMode(trigPin, OUTPUT);
+    pinMode(echoPin, INPUT);
+    pinMode(irPin, INPUT);
+
+    // Menjalankan fungsi secara periodik tanpa perlu mengeceknya di loop()
+    ultrasonicTicker.attach_ms(100, startUltrasonicMeasurement);
+    infraredTicker.attach_ms(50, readInfrared);
 }
 
 void loop() {
-  // Baca sensor ultrasonik
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  long duration = pulseIn(echoPin, HIGH);
-  float distance = duration * 0.034 / 2;
+    static float lastDistance = -1;
+    static int lastIrStatus = -1;
 
-  // Baca sensor infrared
-  int irStatus = digitalRead(irPin);
-  String irStatusString = irStatus ? "OFF" : "ON";
-
-  // Kirim data ke Serial Monitor via USB
-  Serial.print("Jarak: ");
-  Serial.print(distance);
-  Serial.print(" cm | Status IR: ");
-  Serial.println(irStatusString);
-
-  delay(1000);
+    if (distance != lastDistance || irStatus != lastIrStatus) {
+        Serial.print("{\"ultrasonic\":");
+        Serial.print(distance);
+        Serial.print(",\"infrared\":");
+        Serial.print(irStatus);
+        Serial.println("}"); 
+        lastDistance = distance;
+        lastIrStatus = irStatus;
+    }
 }
