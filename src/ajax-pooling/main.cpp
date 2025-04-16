@@ -9,20 +9,21 @@ ESP8266WebServer server(80);
 Ticker ultrasonicTicker;
 Ticker infraredTicker;
 
-const int trigPin = D1;
-const int echoPin = D2;
-const int irPin = D3;
+const int echoPin = D7;
+const int trigPin = D8;
 
 volatile float distance = 0;
 volatile int irStatus = 0;
 
-void connectWiFi() {
+void connectWiFi()
+{
     Serial.print("Connecting to WiFi");
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
-    while (WiFi.status() != WL_CONNECTED) {
+    while (WiFi.status() != WL_CONNECTED)
+    {
         delay(500);
         Serial.print(".");
     }
@@ -32,7 +33,8 @@ void connectWiFi() {
 
 volatile float lastValidDistance = -1;
 
-void readUltrasonic() {
+void readUltrasonic()
+{
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
     digitalWrite(trigPin, HIGH);
@@ -40,23 +42,22 @@ void readUltrasonic() {
     digitalWrite(trigPin, LOW);
 
     long duration = pulseInLong(echoPin, HIGH, 30000);
-    
+
     float newDistance = duration * 0.034 / 2;
 
-    if (newDistance > 2 && newDistance < 400) {  
+    if (newDistance > 2 && newDistance < 400)
+    {
         distance = newDistance;
-        lastValidDistance = distance;  
-    } else if (lastValidDistance != -1) {
-        distance = lastValidDistance;  
+        lastValidDistance = distance;
+    }
+    else if (lastValidDistance != -1)
+    {
+        distance = lastValidDistance;
     }
 }
 
-
-void readInfrared() {
-    irStatus = digitalRead(irPin);
-}
-
-void handleRoot() {
+void handleRoot()
+{
     String html = R"(
         <!DOCTYPE html>
         <html>
@@ -74,15 +75,13 @@ void handleRoot() {
                         .then(response => response.json())
                         .then(data => {
                             document.getElementById('ultrasonic-data').innerText = data.distance_cm + ' cm';
-                        });
-
-                    fetch('/infrared')
-                        .then(response => response.json())
-                        .then(data => {
-                            document.getElementById('infrared-data').innerText = data.ir_status;
+                            if (data.distance_cm < 20) {
+                                document.getElementById('status-objek').innerText = 'Ada Kain';
+                            } else {
+                                document.getElementById('status-objek').innerText = 'Tidak Ada Kain';
+                            }
                         });
                 }
-
                 setInterval(fetchData, 100);
             </script>
         </head>
@@ -93,8 +92,8 @@ void handleRoot() {
                 <span class="data-value" id="ultrasonic-data">-</span>
             </div>
             <div class="data-container">
-                <span class="data-label">Infrared Status:</span>
-                <span class="data-value" id="infrared-data">-</span>
+                <span class="data-label">Status:</span>
+                <span class="data-value" id="status-objek">-</span>
             </div>
         </body>
         </html>
@@ -102,35 +101,29 @@ void handleRoot() {
     server.send(200, "text/html", html);
 }
 
-void handleUltrasonic() {
+void handleUltrasonic()
+{
     String json = "{\"distance_cm\": " + String(distance) + "}";
     server.send(200, "application/json", json);
 }
 
-void handleInfrared() {
-    String irStatusString = irStatus ? "OFF" : "ON";
-    String json = "{\"ir_status\": \"" + irStatusString + "\"}";
-    server.send(200, "application/json", json);
-}
-
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     connectWiFi();
 
     pinMode(trigPin, OUTPUT);
     pinMode(echoPin, INPUT);
-    pinMode(irPin, INPUT);
 
     server.on("/", HTTP_GET, handleRoot);
     server.on("/ultrasonic", HTTP_GET, handleUltrasonic);
-    server.on("/infrared", HTTP_GET, handleInfrared);
 
     server.begin();
-    
-    ultrasonicTicker.attach_ms(100, readUltrasonic);  
-    infraredTicker.attach_ms(50, readInfrared);       
+
+    ultrasonicTicker.attach_ms(50, readUltrasonic);
 }
 
-void loop() {
-    server.handleClient();  
+void loop()
+{
+    server.handleClient();
 }

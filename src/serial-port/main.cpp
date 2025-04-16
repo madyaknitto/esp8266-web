@@ -1,52 +1,68 @@
 #include <Ticker.h>
 
-Ticker ultrasonicTicker;
-Ticker infraredTicker;
+const int echoPin = D7;
+const int trigPin = D8;
 
-const int trigPin = D1;
-const int echoPin = D2;
-const int irPin = D3;
+volatile unsigned long startTime = 0;
+volatile unsigned long endTime = 0;
+volatile bool measuring = false;
+volatile bool newDistanceAvailable = false;
 
 float distance = 0.0;
-int irStatus = 0;
+unsigned long lastTriggerTime = 0;
+const unsigned long TRIGGER_INTERVAL_MS = 60;
 
-void startUltrasonicMeasurement() {
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
-
-    unsigned long duration = pulseIn(echoPin, HIGH);
-    distance = duration * 0.034 / 2;
+void IRAM_ATTR echoISR() {
+    if (digitalRead(echoPin) == HIGH) {
+        startTime = micros();
+        measuring = true;
+    } else if (measuring) {
+        endTime = micros();
+        measuring = false;
+        newDistanceAvailable = true;
+    }
 }
 
-void readInfrared() {
-    irStatus = digitalRead(irPin);
+void triggerUltrasonic() {
+    unsigned long currentTime = millis();
+    if (currentTime - lastTriggerTime >= TRIGGER_INTERVAL_MS) {
+        digitalWrite(trigPin, LOW);
+        delayMicroseconds(2);
+        digitalWrite(trigPin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(trigPin, LOW);
+
+        lastTriggerTime = currentTime;
+    }
 }
 
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(9600);
     pinMode(trigPin, OUTPUT);
     pinMode(echoPin, INPUT);
-    pinMode(irPin, INPUT);
 
-    // Menjalankan fungsi secara periodik tanpa perlu mengeceknya di loop()
-    ultrasonicTicker.attach_ms(100, startUltrasonicMeasurement);
-    infraredTicker.attach_ms(50, readInfrared);
+    attachInterrupt(digitalPinToInterrupt(echoPin), echoISR, CHANGE);
 }
 
 void loop() {
-    static float lastDistance = -1;
-    static int lastIrStatus = -1;
+    if (newDistanceAvailable) {
+        noInterrupts();
+        unsigned long duration = endTime - startTime;
+        newDistanceAvailable = false;
+        interrupts();
 
-    if (distance != lastDistance || irStatus != lastIrStatus) {
-        Serial.print("{\"ultrasonic\":");
-        Serial.print(distance);
-        Serial.print(",\"infrared\":");
-        Serial.print(irStatus);
-        Serial.println("}"); 
-        lastDistance = distance;
-        lastIrStatus = irStatus;
+        distance = duration * 0.034 / 2.0;
+
+        if (distance > 0 && distance < 400.0) {
+            Serial.print("{\"ultrasonic\":");
+            Serial.print(distance);
+            Serial.println("}");
+        } else {
+            Serial.print("{\"ultrasonic\":");
+            Serial.print(125.0);
+            Serial.println("}");
+        }
     }
+
+    triggerUltrasonic();
 }

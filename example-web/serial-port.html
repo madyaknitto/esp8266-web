@@ -5,11 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP8266 Sensor Data</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
-        .data-container { margin: 10px auto; padding: 10px; border: 1px solid #ddd; width: 300px; border-radius: 10px; text-align: left; }
-        .data-label { font-weight: bold; }
-        .data-value { color: green; font-size: 20px; }
-        button { padding: 10px; margin: 10px; cursor: pointer; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+
+        .data-container {
+            margin: 10px auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            width: 300px;
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .data-label {
+            font-weight: bold;
+        }
+
+        .data-value {
+            color: green;
+            font-size: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 15px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -21,42 +54,48 @@
         <span class="data-value" id="ultrasonic-data">-</span>
     </div>
     <div class="data-container">
-        <span class="data-label">Infrared Status:</span>
-        <span class="data-value" id="infrared-data">-</span>
+        <span class="data-label">Status:</span>
+        <span class="data-value" id="status-objek">-</span>
     </div>
 
     <script>
         let port;
-    
+
         document.getElementById("connect").addEventListener("click", async () => {
             try {
                 port = await navigator.serial.requestPort();
-                await port.open({ baudRate: 115200 });
-    
+                await port.open({ baudRate: 9600 });
+
                 const reader = port.readable.getReader();
                 const decoder = new TextDecoder();
                 let buffer = "";
-    
+
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
-    
+
                     buffer += decoder.decode(value, { stream: true });
-    
+
                     let lines = buffer.split("\n");
-                    buffer = lines.pop();  // Sisakan data yang belum lengkap
-    
+                    buffer = lines.pop(); // Simpan sisa data tidak lengkap
+
                     for (let line of lines) {
                         try {
                             let data = JSON.parse(line.trim());
-                            document.getElementById("ultrasonic-data").textContent = data.ultrasonic + " cm";
-                            document.getElementById("infrared-data").textContent = data.infrared ? "OFF" : "ON";
+                            const ultrasonic = data.ultrasonic;
+                            document.getElementById("ultrasonic-data").textContent = ultrasonic + " cm";
+
+                            if (ultrasonic < 20) {
+                                document.getElementById("status-objek").textContent = "Ada Kain";
+                            } else {
+                                document.getElementById("status-objek").textContent = "Tidak Ada Kain";
+                            }
                         } catch (err) {
                             console.error("Gagal parsing data:", err, line);
                         }
                     }
                 }
-    
+
                 reader.releaseLock();
             } catch (err) {
                 console.error("Gagal menghubungkan ke serial:", err);
